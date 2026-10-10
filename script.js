@@ -1,6 +1,8 @@
 
 "use strict";
 
+// CR7 LEGACY — FULL INTERACTIVITY
+
 const menuToggle = document.getElementById("menuToggle");
 const navigation = document.getElementById("navigation");
 const navLinks = document.querySelectorAll(".nav-link");
@@ -12,58 +14,143 @@ const searchSubmit = document.getElementById("searchSubmit");
 const searchClose = document.getElementById("searchClose");
 const searchMessage = document.getElementById("searchMessage");
 
-// MOBILE NAVIGATION
+// MOBILE MENU
 
 function closeMenu() {
+  if (!navigation || !menuToggle) return;
+
   navigation.classList.remove("open");
   menuToggle.setAttribute("aria-expanded", "false");
   menuToggle.textContent = "☰";
 }
 
-menuToggle.addEventListener("click", () => {
-  const isOpen = navigation.classList.toggle("open");
+if (menuToggle && navigation) {
+  menuToggle.addEventListener("click", () => {
+    const isOpen = navigation.classList.toggle("open");
 
-  menuToggle.setAttribute("aria-expanded", String(isOpen));
-  menuToggle.textContent = isOpen ? "✕" : "☰";
-});
+    menuToggle.setAttribute("aria-expanded", String(isOpen));
+    menuToggle.textContent = isOpen ? "✕" : "☰";
+  });
+}
 
 navLinks.forEach((link) => {
-  link.addEventListener("click", () => {
-    closeMenu();
-  });
+  link.addEventListener("click", closeMenu);
 });
 
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") {
-    closeMenu();
-    closeSearch();
+// SEARCH PANEL
+
+function openSearch() {
+  if (!searchPanel || !searchInput) return;
+
+  searchPanel.hidden = false;
+  searchInput.focus();
+}
+
+function closeSearch() {
+  if (!searchPanel) return;
+
+  searchPanel.hidden = true;
+
+  if (searchMessage) {
+    searchMessage.textContent = "";
   }
-});
+}
 
-// HIGHLIGHT THE CURRENT SECTION
+if (searchToggle) {
+  searchToggle.addEventListener("click", () => {
+    if (!searchPanel) return;
+
+    if (searchPanel.hidden) {
+      openSearch();
+    } else {
+      closeSearch();
+    }
+  });
+}
+
+if (searchClose) {
+  searchClose.addEventListener("click", closeSearch);
+}
+
+// SEARCH ALL MAIN SECTIONS
+
+function searchWebsite() {
+  if (!searchInput || !searchMessage) return;
+
+  const query = searchInput.value.trim().toLowerCase();
+
+  if (!query) {
+    searchMessage.textContent = "Enter a topic to search.";
+    searchInput.focus();
+    return;
+  }
+
+  const searchableItems = document.querySelectorAll(
+    "main section[id], .career-card, .trophy-card, .stat-card, .timeline-item, .gallery-card, .bio-copy"
+  );
+
+  const results = Array.from(searchableItems).filter((item) => {
+    return item.innerText.toLowerCase().includes(query);
+  });
+
+  if (!results.length) {
+    searchMessage.textContent =
+      "No matches found. Try Ronaldo, Portugal, trophies, Madrid, or goals.";
+    return;
+  }
+
+  const target = results[0];
+  const section = target.matches("section[id]")
+    ? target
+    : target.closest("section[id]");
+
+  if (!section) {
+    searchMessage.textContent = "No section found for this result.";
+    return;
+  }
+
+  closeSearch();
+  history.replaceState(null, "", `#${section.id}`);
+
+  section.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+}
+
+if (searchSubmit) {
+  searchSubmit.addEventListener("click", searchWebsite);
+}
+
+if (searchInput) {
+  searchInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      searchWebsite();
+    }
+  });
+}
+
+// CURRENT SECTION HIGHLIGHT
 
 const sections = document.querySelectorAll("main section[id]");
 
 if ("IntersectionObserver" in window) {
-  const observer = new IntersectionObserver(
+  const sectionObserver = new IntersectionObserver(
     (entries) => {
       const visible = entries
         .filter((entry) => entry.isIntersecting)
-        .sort(
-          (a, b) =>
-            b.intersectionRatio - a.intersectionRatio
-        );
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
 
-      if (visible.length === 0) return;
+      if (!visible.length) return;
 
       const currentId = visible[0].target.id;
 
       navLinks.forEach((link) => {
-        const isActive = link.getAttribute("href") === `#${currentId}`;
+        const active = link.getAttribute("href") === `#${currentId}`;
 
-        link.classList.toggle("active", isActive);
+        link.classList.toggle("active", active);
 
-        if (isActive) {
+        if (active) {
           link.setAttribute("aria-current", "location");
         } else {
           link.removeAttribute("aria-current");
@@ -76,111 +163,124 @@ if ("IntersectionObserver" in window) {
     }
   );
 
-  sections.forEach((section) => observer.observe(section));
+  sections.forEach((section) => sectionObserver.observe(section));
 }
 
-// WEBSITE SEARCH
+// ANIMATED COUNTERS
 
-function openSearch() {
-  searchPanel.hidden = false;
-  searchInput.focus();
+const counters = document.querySelectorAll(".stat-number[data-count]");
+
+const reducedMotion = window.matchMedia(
+  "(prefers-reduced-motion: reduce)"
+).matches;
+
+function formatCounter(value) {
+  return Math.round(value).toLocaleString("en-US");
 }
 
-function closeSearch() {
-  searchPanel.hidden = true;
-  searchMessage.textContent = "";
-}
+function animateCounter(element) {
+  if (element.dataset.animated === "true") return;
 
-searchToggle.addEventListener("click", () => {
-  if (searchPanel.hidden) {
-    openSearch();
-  } else {
-    closeSearch();
-  }
-});
+  element.dataset.animated = "true";
 
-searchClose.addEventListener("click", closeSearch);
+  const target = Number(element.dataset.count);
+  const suffix = element.dataset.suffix || "";
 
-function searchWebsite() {
-  const query = searchInput.value.trim().toLowerCase();
+  if (!Number.isFinite(target)) return;
 
-  if (!query) {
-    searchMessage.textContent = "Enter a topic to search.";
-    searchInput.focus();
+  if (reducedMotion) {
+    element.textContent = formatCounter(target) + suffix;
+    element.closest(".stat-card")?.classList.add("counted");
     return;
   }
 
-  const searchableItems = [
-    ...document.querySelectorAll(
-      "main section[id], .career-card, .trophy-card, .stat-card, .timeline-item, .gallery-card, .bio-copy"
-    )
-  ];
+  const duration = 1600;
+  const startTime = performance.now();
 
-  const results = searchableItems.filter((item) => {
-    const text = item.innerText.toLowerCase();
-    const heading = item.querySelector("h2, h3, strong");
-    const title = heading ? heading.innerText.toLowerCase() : "";
+  function updateCounter(now) {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 4);
 
-    return text.includes(query) || title.includes(query);
-  });
+    element.textContent = formatCounter(target * eased) + suffix;
 
-  if (results.length === 0) {
-    searchMessage.textContent =
-      "No matches found. Try Ronaldo, Portugal, trophies, Madrid, or goals.";
-    return;
-  }
-
-  const target = results[0];
-  const section = target.matches("section[id]")
-    ? target
-    : target.closest("section[id]");
-
-  if (section) {
-    closeSearch();
-    section.scrollIntoView({ behavior: "smooth", block: "start" });
-
-    if (section.id === "home") {
-      history.replaceState(null, "", "#home");
+    if (progress < 1) {
+      requestAnimationFrame(updateCounter);
     } else {
-      history.replaceState(null, "", `#${section.id}`);
+      element.textContent = formatCounter(target) + suffix;
+      element.closest(".stat-card")?.classList.add("counted");
     }
-  } else {
-    searchMessage.textContent = "A match was found, but it has no section link.";
   }
+
+  requestAnimationFrame(updateCounter);
 }
 
-searchSubmit.addEventListener("click", searchWebsite);
+if ("IntersectionObserver" in window) {
+  const counterObserver = new IntersectionObserver(
+    (entries, observer) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          animateCounter(entry.target);
+          observer.unobserve(entry.target);
+        }
+      });
+    },
+    { threshold: 0.45 }
+  );
 
-searchInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    searchWebsite();
-  }
+  counters.forEach((counter) => counterObserver.observe(counter));
+} else {
+  counters.forEach(animateCounter);
+}
+
+// INTERACTIVE TROPHY CARDS
+// Open one card at a time.
+
+document.querySelectorAll(".trophy-card").forEach((card) => {
+  card.addEventListener("toggle", () => {
+    if (!card.open) return;
+
+    document.querySelectorAll(".trophy-card[open]").forEach((other) => {
+      if (other !== card) other.open = false;
+    });
+  });
 });
 
-// KEEP THE MOBILE MENU CLOSED WHEN RESIZING TO DESKTOP
+// ESCAPE KEY AND RESPONSIVE MENU
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeMenu();
+    closeSearch();
+  }
+});
 
 window.addEventListener("resize", () => {
-  if (window.innerWidth > 760) {
-    closeMenu();
-  }
+  if (window.innerWidth > 760) closeMenu();
 });
 
-// SUPPORT DIRECT LINKS TO EACH SECTION
+// DIRECT SECTION LINKS
 
 function navigateToHash() {
   if (!window.location.hash) return;
 
-  const target = document.getElementById(
-    decodeURIComponent(window.location.hash.slice(1))
-  );
+  let id;
+
+  try {
+    id = decodeURIComponent(window.location.hash.slice(1));
+  } catch {
+    return;
+  }
+
+  const target = document.getElementById(id);
 
   if (target) {
-    setTimeout(() => {
-      target.scrollIntoView({ behavior: "auto", block: "start" });
-    }, 50);
+    target.scrollIntoView({
+      behavior: "auto",
+      block: "start"
+    });
   }
 }
 
 window.addEventListener("load", navigateToHash);
 
-console.log("CR7 Legacy website loaded successfully.");
+console.log("CR7 Legacy is ready. SIUUU!");
